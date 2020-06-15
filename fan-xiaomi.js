@@ -131,6 +131,7 @@ class FanXiaomi extends HTMLElement {
                         
                         this.log(`Set angle to: ${newAngle}`)
                         hass.callService('fan', 'xiaomi_miio_set_oscillation_angle', {
+                            entity_id: entityId,
                             angle: newAngle
                         });
                     }
@@ -195,6 +196,7 @@ class FanXiaomi extends HTMLElement {
                         
                         this.log(`Set timer to: ${newTimer}`)
                         hass.callService('fan', 'xiaomi_miio_set_delay_off', {
+                            entity_id: entityId,
                             delay_off_countdown: newTimer
                         });
                     }
@@ -538,7 +540,10 @@ Natural
         // let direct_speed_int = Number(direct_speed)
         let speedRegexp = /Level (\d)/g
         let speedRegexpMatch = speedRegexp.exec(speed)
-        let speedLevel = speedRegexpMatch[1]
+        let speedLevel
+        if (speedRegexpMatch && speedRegexpMatch.length > 0) {
+            speedLevel = speedRegexpMatch[1]
+        }
         if (speedLevel === undefined) {
             this.error(`Unable to parse speed level: ${speed}`)
             speedLevel = 1
