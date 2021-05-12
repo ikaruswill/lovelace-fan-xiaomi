@@ -756,7 +756,7 @@ Sleep
 
     // Add to logs
     log() {
-        console.log(...arguments)
+        //console.log(...arguments)
     }
     warn() {
         // console.log(...arguments)
