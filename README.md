@@ -11,6 +11,7 @@ Xiaomi Smartmi Fan Lovelace card for HASS/Home Assistant.
 - Oscillation
 - Natural mode
 - Child lock
+- Sleep
 
 ### Cycling
 - Speed level
