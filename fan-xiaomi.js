@@ -1,5 +1,5 @@
 const LitElement = Object.getPrototypeOf(
-  customElements.get("ha-panel-lovelace")
+    customElements.get("ha-panel-lovelace")
 );
 const html = LitElement.prototype.html;
 const includeDomains = ["fan"];
@@ -15,7 +15,7 @@ class FanXiaomi extends HTMLElement {
     }
     
     supportedAttributes = {
-        angle: true, childLock: true, timer: true, rotationAngle: true, speedLevels: 4, natural_speed: true, natural_speed_reporting: true, supported_angles: [30, 60, 90, 120]
+        angle: true, childLock: true, timer: true, rotationAngle: true, speedLevels: 4, natural_speed: true, natural_speed_reporting: true, supported_angles: [30, 60, 90, 120], sleep_mode: false
     }
 
     set hass(hass) {
@@ -26,7 +26,10 @@ class FanXiaomi extends HTMLElement {
         const ui = this.getUI();
         const platform = this.config.platform || 'xiaomi_miio_fan';
         const disable_immediate_UI = this.config.disable_immediate_UI;
+        const use_standard_speeds = this.config.use_standard_speeds || false;
+        const force_sleep_mode_support = this.config.force_sleep_mode_support || false;
         
+
         if (!this.card){
             const card = document.createElement('ha-card');
             card.className = 'fan-xiaomi'
@@ -67,11 +70,21 @@ class FanXiaomi extends HTMLElement {
             this.supportedAttributes.supported_angles = [30, 60, 90, 120, 150];
         }
         if (['leshow.fan.ss4'].includes(attrs['model'])){
+            this.supportedAttributes.natural_speed = false;
             this.supportedAttributes.natural_speed_reporting = false;
             this.supportedAttributes.rotationAngle = false;
             this.supportedAttributes.childLock = false;
+            this.supportedAttributes.sleep_mode = true;
         }
-        
+
+        //trick to support of 'any' fan
+        if (use_standard_speeds) {
+            this.supportedAttributes.speedList = ['low', 'medium', 'high']
+        }
+        if (force_sleep_mode_support) {
+            this.supportedAttributes.sleep_mode = true;
+        }
+
         if (!this.card) {
             const card = document.createElement('ha-card');
             card.className = 'fan-xiaomi'
@@ -128,24 +141,24 @@ class FanXiaomi extends HTMLElement {
                     let iconSpan = u.querySelector('.icon-waper')
                     let icon = u.querySelector('.icon-waper > ha-icon').getAttribute('icon')
                     let newSpeedLevel
-                    if (icon === "mdi:numeric-1-box-outline") {
-                        newSpeedLevel = 2
-                    } else if (icon === "mdi:numeric-2-box-outline") {
-                        newSpeedLevel = 3
-                    } else if (icon === "mdi:numeric-3-box-outline") {
-                        newSpeedLevel = this.supportedAttributes.speedLevels == 3 ? 1 : 4
-                    } else if (icon === "mdi:numeric-4-box-outline") {
-                        newSpeedLevel = 1
+                    let newSpeed
+
+                    let maskSpeedLevel = /mdi:numeric-(\d)-box-outline/g
+                    let speedLevelMatch = maskSpeedLevel.exec(icon)
+                    let speedLevel = parseInt(speedLevelMatch ? speedLevelMatch[1] : 1)
+                    if (use_standard_speeds) {
+                        newSpeedLevel = this.supportedAttributes.speedList[(speedLevel < this.supportedAttributes.speedList.length ? speedLevel: 0)]
+                        newSpeed = newSpeedLevel
                     } else {
-                        this.error(`Error setting fan speed. icon = ${icon}`)
-                        newSpeedLevel = 1
-                        this.error(`Defaulting to: ${newSpeedLevel}`)
+                        newSpeedLevel = (speedLevel < this.supportedAttributes.speedLevels ? speedLevel+1: 1)
+                        newSpeed = `Level ${newSpeedLevel}`
                     }
+                    
+
                     if (!disable_immediate_UI) {
                         iconSpan.innerHTML = `<ha-icon icon="mdi:numeric-${newSpeedLevel}-box-outline"></ha-icon>`
                         blades.className = `blades level${newSpeedLevel}`
                     }
-                    let newSpeed = `Level ${newSpeedLevel}`
                     this.log(`Set speed to: ${newSpeed}`)
                     hass.callService('fan', 'set_speed', {
                         entity_id: entityId,
@@ -309,6 +322,33 @@ class FanXiaomi extends HTMLElement {
                 }
             }
 
+            // Sleep mode event bindings
+            ui.querySelector('.var-sleep').onclick = () => {
+                this.log('Sleep')
+                if (ui.querySelector('.fanbox').classList.contains('active')) {
+                    let u = ui.querySelector('.var-sleep')
+                    if (u.classList.contains('active') === false) {
+                        this.log(`Set sleep mode to: On`)
+                        if (!disable_immediate_UI) {
+                            u.classList.add('active')
+                        }
+                        hass.callService('fan', 'set_percentage', {
+                            entity_id: entityId,
+                            percentage: 1
+                        });
+                    } else {
+                        this.log(`Set sleep mode to: Off`)
+                        if (!disable_immediate_UI) {
+                            u.classList.remove('active')
+                        }
+                        hass.callService('fan', 'set_speed', {
+                            entity_id: entityId,
+                            speed: 'low'
+                        });
+                    }
+                }
+            }
+
             // Oscillation toggle event bindings
             ui.querySelector('.var-oscillating').onclick = () => {
                 this.log('Oscillate')
@@ -348,6 +388,7 @@ class FanXiaomi extends HTMLElement {
             title: myname || attrs['friendly_name'],
             natural_speed: attrs['natural_speed'],
             direct_speed: attrs['direct_speed'],
+            raw_speed: attrs['raw_speed'],
             state: state.state,
             child_lock: attrs['child_lock'],
             oscillating: attrs['oscillating'],
@@ -520,6 +561,14 @@ Oscillate
 Natural
 </button>
 </div>
+<div class="op var-sleep">
+<button>
+<span class="icon-waper">
+<ha-icon icon="mdi:power-sleep"></ha-icon>
+</span>
+Sleep
+</button>
+</div>
 </div>
 `
         return fanbox
@@ -527,7 +576,7 @@ Natural
 
     // Define UI Parameters
 
-    setUI(fanboxa, {title, natural_speed, direct_speed, state,
+    setUI(fanboxa, {title, natural_speed, direct_speed, raw_speed, state,
         child_lock, oscillating, led_brightness, delay_off_countdown, angle,
         speed, mode, model
     }) {
@@ -607,15 +656,22 @@ Natural
         } else {
             activeElement.classList.remove('active')
         }
-        // let direct_speed_int = Number(direct_speed)
-        let speedRegexp = /Level (\d)/g
-        let speedRegexpMatch = speedRegexp.exec(speed)
+        //let raw_speed_int = Number(raw_speed)
+        let speedRegexpMatch
         let speedLevel
-        if (speedRegexpMatch && speedRegexpMatch.length > 0) {
-            speedLevel = speedRegexpMatch[1]
-        }
-        if (speedLevel === undefined) {
-            speedLevel = 1
+        let raw_speed_int = Number(raw_speed)
+        if (!this.config.use_standard_speeds) {
+            let speedRegexp = /Level (\d)/g
+            speedRegexpMatch = speedRegexp.exec(speed)
+            if (speedRegexpMatch && speedRegexpMatch.length > 0) {
+                speedLevel = speedRegexpMatch[1]
+            }
+            if (speedLevel === undefined) {
+                speedLevel = 1
+            }
+        } else {
+            let speedCount = this.supportedAttributes.speedList.length
+            speedLevel = Math.round(raw_speed_int/100*speedCount)
         }
         iconSpan.innerHTML = `<ha-icon icon="mdi:numeric-${speedLevel}-box-outline"></ha-icon>`
         activeElement = fanboxa.querySelector('.fanbox .blades')
@@ -623,17 +679,17 @@ Natural
 
         // Natural mode
         activeElement = fanboxa.querySelector('.var-natural')
-
+        
          //p* fans do not report direct_speed and natural_speed
         if (!this.supportedAttributes.natural_speed_reporting && this.supportedAttributes.natural_speed) {
-            if (mode === 'nature') {
+            if (mode === 'nature' || mode === '3') {    //p* fans mode showw as nature, leshow.fan.ss4 nature mode is 3
                 natural_speed = true
             } else if (mode === 'normal') {
                 natural_speed = false
             } else {
-                this.error(`Unrecognized mode for ${model} when updating natural mode state: ${mode}`)
+                //this.error(`Unrecognized mode for ${model} when updating natural mode state: ${mode}`)
                 natural_speed = false
-                this.error(`Defaulting to natural_speed = ${natural_speed}`)
+                //this.error(`Defaulting to natural_speed = ${natural_speed}`)
             }
         }
         if (this.supportedAttributes.natural_speed) {
@@ -644,7 +700,23 @@ Natural
             } else {
                 activeElement.classList.remove('active')
             }
-        } else {
+        } else
+        {
+            activeElement.style.display='none'
+        }
+
+        // Sleep mode
+        activeElement = fanboxa.querySelector('.var-sleep')
+        if (this.supportedAttributes.sleep_mode) {
+            if (raw_speed_int == 1) {
+                if (activeElement.classList.contains('active') === false) {
+                    activeElement.classList.add('active')
+                }
+            } else {
+                activeElement.classList.remove('active')
+            }
+        } else
+        {
             activeElement.style.display='none'
         }
 
@@ -680,7 +752,7 @@ Natural
 
     // Add to logs
     log() {
-        // console.log(...arguments)
+        console.log(...arguments)
     }
     warn() {
         // console.log(...arguments)
@@ -713,12 +785,15 @@ class ContentCardEditor extends LitElement {
     var fanRE = new RegExp("fan\.")
     return html`
     <div class="card-config">
-      <paper-input
+    <div class="row">
+    <paper-input
           label="${this.hass.localize("ui.panel.lovelace.editor.card.generic.title")} (${this.hass.localize("ui.panel.lovelace.editor.card.config.optional")})"
           .value="${this.config.name}"
           .configValue="${"name"}"
           @value-changed="${this._valueChanged}"
       ></paper-input>
+      </div>
+      <div class="row">
       <ha-formfield label="Disable animation">
         <ha-switch
           .checked=${this.config.disable_animation}
@@ -726,6 +801,8 @@ class ContentCardEditor extends LitElement {
           @change=${this._valueChanged}
         ></ha-switch>
       </ha-formfield>
+      </div>
+      <div class="row">
       <ha-formfield label="Disable immediate UI">
         <ha-switch
           .checked=${this.config.disable_immediate_UI}
@@ -733,6 +810,26 @@ class ContentCardEditor extends LitElement {
           @change=${this._valueChanged}
         ></ha-switch>
       </ha-formfield>
+      </div>
+      <div class="row">
+      <ha-formfield label="Use HA standard speeds (low/medium/high)">
+        <ha-switch
+          .checked=${this.config.use_standard_speeds}
+          .configValue="${'use_standard_speeds'}"
+          @change=${this._valueChanged}
+        ></ha-switch>
+      </ha-formfield>
+      </div>
+      <div class="row">
+      <ha-formfield label="Show sleep mode button">
+        <ha-switch
+          .checked=${this.config.force_sleep_mode_support}
+          .configValue="${'force_sleep_mode_support'}"
+          @change=${this._valueChanged}
+        ></ha-switch>
+      </ha-formfield>
+      </div>
+      <div class="row">
       <paper-dropdown-menu
         label="Platform"
         .configValue=${'platform'}
@@ -746,6 +843,8 @@ class ContentCardEditor extends LitElement {
           ${(Object.values(OptionsPlatform)).map(item => html` <paper-item>${item}</paper-item> `)}
         </paper-listbox>
       </paper-dropdown-menu>
+      </div>
+      <div class="row">
       <ha-entity-picker
         .label="${this.hass.localize(
           "ui.panel.lovelace.editor.card.generic.entity"
@@ -759,6 +858,7 @@ class ContentCardEditor extends LitElement {
         @change=${this._valueChanged}
         allow-custom-entity
       ></ha-entity-picker>
+      </div>
     </div>
     `
   }
