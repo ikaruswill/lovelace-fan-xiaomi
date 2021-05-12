@@ -51,6 +51,8 @@ platform: xiaomi_miio_airpurifier
 | `type`                  | `custom:fan-xiaomi`    | Mandatory: card type specification               |
 | `disable_animation`     | `False`                | Optional: Flag that defines whether to disable fan image  |
 | `disable_immediate_UI`  | `False`                | Optional: Flag that defines whether to disable immediate UI changes. In this case, UI is changed only when entity really changes the state.  |
+| `use_standard_speeds`  | `False`                | Optional: Use low/medium/high speeds instead of Level 1-3/4 for fans. This can be enabled, if fan is not yet properly supported by this card. |
+| `force_sleep_mode_support`  | `False`                | Optional: Enables display of Sleep button in UI, which sets speed to 1% |
 | `platform`              | `xiaomi_miio_fan`      | Optional: For [Xiaomi Mi Air Purifier & Xiaomi Mi Air Humidifier Integration](https://github.com/syssi/xiaomi_airpurifier) you must specify `xiaomi_miio_airpurifier`, if [Xiaomi Mi Smart Pedestal Fan Integration](https://github.com/syssi/xiaomi_fan) is used then can specify `xiaomi_miio_fan` or can ommit it. |
 
 ## Preview
