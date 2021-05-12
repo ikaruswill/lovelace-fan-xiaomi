@@ -6,6 +6,7 @@ Xiaomi Smartmi Fan Lovelace card for HASS/Home Assistant.
 ## Features
 - Supports [HACS](https://github.com/custom-components/hacs) installation
 - CSS fan blade and oscillation animation
+- UI config of card
 
 ### Toggles
 - Oscillation
