@@ -11,11 +11,13 @@ class FanXiaomi extends HTMLElement {
     }
     
     static getStubConfig() {
-        return { entity: "fan.fan", name: "Xiaomi Fan", platform: "xiaomi_miio_airpurifier", disable_animation: false, disable_immediate_UI: true }
+        return { entity: "fan.fan", name: "Xiaomi Fan", platform: "xiaomi_miio_airpurifier", disable_animation: false, 
+            disable_immediate_UI: true }
     }
     
     supportedAttributes = {
-        angle: true, childLock: true, timer: true, rotationAngle: true, speedLevels: 4, natural_speed: true, natural_speed_reporting: true, supported_angles: [30, 60, 90, 120], sleep_mode: false
+        angle: true, childLock: true, timer: true, rotationAngle: true, speedLevels: 4, natural_speed: true, 
+            natural_speed_reporting: true, supported_angles: [30, 60, 90, 120], sleep_mode: false
     }
 
     set hass(hass) {
@@ -147,7 +149,8 @@ class FanXiaomi extends HTMLElement {
                     let speedLevelMatch = maskSpeedLevel.exec(icon)
                     let speedLevel = parseInt(speedLevelMatch ? speedLevelMatch[1] : 1)
                     if (use_standard_speeds) {
-                        newSpeedLevel = this.supportedAttributes.speedList[(speedLevel < this.supportedAttributes.speedList.length ? speedLevel: 0)]
+                        newSpeedLevel = this.supportedAttributes.speedList[(speedLevel < 
+                            this.supportedAttributes.speedList.length ? speedLevel: 0)]
                         newSpeed = newSpeedLevel
                     } else {
                         newSpeedLevel = (speedLevel < this.supportedAttributes.speedLevels ? speedLevel+1: 1)
@@ -607,7 +610,8 @@ Sleep
         if(delay_off_countdown) {
             let total_mins = delay_off_countdown
             
-            if (['dmaker.fan.p15', 'dmaker.fan.p11', 'dmaker.fan.p10', 'dmaker.fan.p9', 'dmaker.fan.p5'].indexOf(model) === -1) {
+            if (['dmaker.fan.p15', 'dmaker.fan.p11', 'dmaker.fan.p10', 'dmaker.fan.p9', 'dmaker.fan.p5']
+                .indexOf(model) === -1) {
                 total_mins = total_mins / 60
             }
 
@@ -682,14 +686,14 @@ Sleep
         
          //p* fans do not report direct_speed and natural_speed
         if (!this.supportedAttributes.natural_speed_reporting && this.supportedAttributes.natural_speed) {
-            if (mode === 'nature' || mode === '3') {    //p* fans mode showw as nature, leshow.fan.ss4 nature mode is 3
+            if (mode === 'nature') {
                 natural_speed = true
             } else if (mode === 'normal') {
                 natural_speed = false
             } else {
-                //this.error(`Unrecognized mode for ${model} when updating natural mode state: ${mode}`)
+                this.error(`Unrecognized mode for ${model} when updating natural mode state: ${mode}`)
                 natural_speed = false
-                //this.error(`Defaulting to natural_speed = ${natural_speed}`)
+                this.error(`Defaulting to natural_speed = ${natural_speed}`)
             }
         }
         if (this.supportedAttributes.natural_speed) {
