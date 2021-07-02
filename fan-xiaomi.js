@@ -91,6 +91,18 @@ class FanXiaomi extends HTMLElement {
             this.supportedAttributes.supported_angles = [30, 60, 90, 120, 140];
             //this.supportedAttributes.led = true;
         }
+
+        //temp solution for FA1 fan until proper fan support is added in the upstream
+        if (['zhimi.fan.fa1'].includes(attrs['model'])){
+            this.supportedAttributes.speedIncreaseDecreaseButtons = true;
+            this.supportedAttributes.angle = false;
+            this.supportedAttributes.childLock = false;
+            this.supportedAttributes.rotationAngle = false;
+            this.supportedAttributes.speedLevels = 3;
+            this.supportedAttributes.natural_speed = false;
+            this.supportedAttributes.natural_speed_reporting = false;
+            this.supportedAttributes.timer = false;
+        }
         if (['dmaker.fan.p9'].includes(attrs['model'])){
             this.supportedAttributes.natural_speed_reporting = false;
             this.supportedAttributes.supported_angles = [30, 60, 90, 120, 150];
@@ -192,6 +204,21 @@ class FanXiaomi extends HTMLElement {
                         speed: newSpeed
                     });
                 }
+            }
+
+
+            // Increase/Decrease speed level
+            ui.querySelector('.var-speedup').onclick = () => {
+                this.log('Speed Up');
+                hass.callService('fan', 'increase_speed', {
+                    entity_id: entityId
+                });
+            }
+            ui.querySelector('.var-speeddown').onclick = () => {
+                this.log('Speed Up');
+                hass.callService('fan', 'decrease_speed', {
+                    entity_id: entityId
+                });
             }
 
             // Fan angle toggle event bindings
@@ -564,6 +591,24 @@ to{transform:perspective(10em) rotateY(40deg)}
 Speed
 </button>
 </div>
+
+<div class="op var-speedup">
+<button>
+<span class="icon-waper">
+<ha-icon icon="mdi:fan-chevron-up"></ha-icon>
+</span>
+Speed up
+</button>
+</div>
+<div class="op var-speeddown">
+<button>
+<span class="icon-waper">
+<ha-icon icon="mdi:fan-chevron-down"></ha-icon>
+</span>
+Speed down
+</button>
+</div>
+
 <div class="op var-oscillating">
 <button>
 <span class="icon-waper">
@@ -702,6 +747,7 @@ LED
             activeElement.classList.remove('active')
         }
 
+
         // Speed Level
         activeElement = fanboxa.querySelector('.var-speed')
         let iconSpan = activeElement.querySelector('.icon-waper')
@@ -712,6 +758,7 @@ LED
         } else {
             activeElement.classList.remove('active')
         }
+
         //let raw_speed_int = Number(raw_speed)
         let speedRegexpMatch
         let speedLevel
@@ -801,6 +848,19 @@ LED
         if (this.config.disable_animation) {
             fanboxa.querySelector('.fanbox').style.display = 'none'
             this.card.style.height = '170px'
+        }
+
+        
+        if (!this.supportedAttributes.speedIncreaseDecreaseButtons) {
+            activeElement = fanboxa.querySelector('.var-speedup')
+            activeElement.style.display='none'
+            activeElement = fanboxa.querySelector('.var-speeddown')
+            activeElement.style.display='none'
+        } else {
+            activeElement = fanboxa.querySelector('.var-speed')
+            activeElement.style.display='none'
+            activeElement = fanboxa.querySelector('.var-oscillating')
+            activeElement.style.display='none'
         }
 
     }
